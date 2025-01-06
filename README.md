@@ -56,16 +56,12 @@ The `output` directory contains results after trajectory association and traject
 ### 1. `association.py` — Single-Source Trajectory Association
 
 **Feature Overview**
-The `association` method, a core function of the `Track_Association` class, associates trajectory points across multiple time steps. It compares trajectory points from the current and previous time steps, identifies points belonging to the same target, and updates target trajectories based on predicted points. The final output is the associated trajectories.
+The `association` method, a core function of the `Traj_Association` class, associates trajectory points across multiple time steps. It compares trajectory points from the current and previous time steps, identifies points belonging to the same target, and updates target trajectories based on predicted points. The final output is the associated trajectories.
 
 **Dependencies**:
 
 - `Points_Association`: Responsible for specific trajectory point association logic.
 - `Traj_Predict`: Implements trajectory prediction based on the Kalman filter algorithm.
-
-**Parameter Flexibility**:
-
-- Supports adjusting `THRESHOLD` and `THRESHOLD_TIMES_OUT` to meet different application requirements.
 
 **Applicable Scenarios**:
 
@@ -77,10 +73,6 @@ The `association` method, a core function of the `Track_Association` class, asso
 
 **Feature Overview**
 The `matching.py` module's core function is to match and associate trajectories across multiple data sources. By comparing trajectory data from different sources, this method identifies pairs of trajectories belonging to the same target and generates matching results.
-
-**Parameter Flexibility**:
-
-- Supports adjusting spatial distance threshold `d_sim_sensor_m` and matching rate threshold `d_match_rate` to adapt to different scenarios.
 
 **Applicable Scenarios**:
 
