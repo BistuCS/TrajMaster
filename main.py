@@ -8,7 +8,9 @@ from fusion import *
 from pathlib import Path  
 
 def main():
+
     # Get the absolute path of the current script
+
     current_folder = Path(__file__).parent  # Get the directory of the current script
 
     # Directories for data files: relative to the current script
@@ -37,15 +39,17 @@ def main():
     for ds_id in ds_ids:
         # Get trajectory data for a single data source
         ds_data = loader.trajectory_data[ds_id]
-        
+
+        # Data Dimensions
+        pos_dim = loader.position_dim
         # Create Traj_Association object
-        ds_trajs = Traj_Association(ds_data)
-        
+        ds_trajs = Traj_Association(ds_data, ds_id, pos_dim)
+
         # Get associated trajectories
         trajs = ds_trajs.association()
 
         loader.ds_trajs = trajs
-        
+
         # Save associated trajectories to CSV file
         output_file = output_folder / f"ds{ds_id}_trajs.csv"
         save_trajectory_to_csv(trajs, output_file)
@@ -63,14 +67,15 @@ def main():
             ds_2_trajs = read_trajectory_from_csv(ds2_file)
             
             # Match trajectories from two data sources
+            pos_dim = loader.position_dim
             matched_results = {}
-            matched_results[ds1] = match(ds_1_trajs, ds_2_trajs)
+            matched_results[ds1] = match(ds_1_trajs, ds_2_trajs, pos_dim)
 
             # Fuse paired trajectories from two data sources
             traj_dict1 = load_trajectory_data(ds1_file)
             traj_dict2 = load_trajectory_data(ds2_file)
             fused_file = output_folder / f"fused{ds1}_{ds2}_trajs.csv"
-            fuse_trajectories(matched_results, traj_dict1, traj_dict2, fused_file)
+            fuse_trajectories(matched_results, traj_dict1, traj_dict2, fused_file, pos_dim)
 
     print("Fusion completed.")
 

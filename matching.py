@@ -4,7 +4,7 @@ import math
 d_sim_ds_m = 1200  # Set the maximum matching distance
 d_match_rate = 0.75   # Set the matching rate threshold
 
-def match(trajs_ds1, trajs_ds2):
+def match(trajs_ds1, trajs_ds2, pos_dim):
     # Initialize counters
     cnt = defaultdict(int)
     cnt2 = defaultdict(int)
@@ -37,18 +37,34 @@ def match(trajs_ds1, trajs_ds2):
                 def dist2(alng, alat, blng, blat):
                     return math.sqrt((alng - blng) ** 2 + (alat - blat) ** 2) * 109001.77571  # Convert to meters
 
-                def cal_sim_ds(lon, lat, lon2, lat2):
+                def dist3(alng, alat, alti, blng, blat, blti):
+                    return math.sqrt((alng - blng) ** 2 + (alat - blat) ** 2 + (alti - blti) ** 2) * 109001.77571  # Convert to meters
+
+                def cal_sim_ds_2d(lon, lat, lon2, lat2):
                     return dist2(lon, lat, lon2, lat2) < d_sim_ds_m
 
+                def cal_sim_ds_3d(lon, lat, z, lon2, lat2, z2):
+                    return dist3(lon, lat, z, lon2, lat2, z2) < d_sim_ds_m
+
                 # Update matching counters; terminate if consecutive mismatches exceed 30
-                cnt2[((id_traj), (other_id_traj))] += 1
-                if cal_sim_ds(*traj_ds1_data[p_ds][1:3], *traj_ds2_data[p2_ds][1:3]):
-                    lim = 0
-                    cnt[((id_traj), (other_id_traj))] += 1
-                else:
-                    lim += 1
-                    if lim > 30:
-                        break
+                if pos_dim == 2:
+                    cnt2[((id_traj), (other_id_traj))] += 1
+                    if cal_sim_ds_2d(*traj_ds1_data[p_ds][1:3], *traj_ds2_data[p2_ds][1:3]):
+                        lim = 0
+                        cnt[((id_traj), (other_id_traj))] += 1
+                    else:
+                        lim += 1
+                        if lim > 30:
+                            break
+                elif pos_dim == 3:
+                    cnt2[((id_traj), (other_id_traj))] += 1
+                    if cal_sim_ds_3d(*traj_ds1_data[p_ds][1:4], *traj_ds2_data[p2_ds][1:4]):
+                        lim = 0
+                        cnt[((id_traj), (other_id_traj))] += 1
+                    else:
+                        lim += 1
+                        if lim > 30:
+                            break
                 p2_ds += 1
 
     # Process matching results
