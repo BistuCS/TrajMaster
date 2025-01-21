@@ -119,6 +119,8 @@ def fuse_trajectories(dic_match, traj_dict1, traj_dict2, output_file, pos_dim):
                             prev_z = z_new
     # Save fused results to a CSV file with columns: traj_id and trajectory
 
+                fused_trajectories[fused_id] = fused_trajectory
+                fused_id += 1
     with open(output_file, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(["id", "trajectory"])
