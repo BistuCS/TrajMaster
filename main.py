@@ -23,7 +23,7 @@ def main():
     # Create data loader class
     loader = Load_Data()  # No file path needed, dynamic loading used
 
-    # # Load data from all data sources
+    # Load data from all data sources
     for ds_id in ds_ids:
         # Construct file path
         trajectory_file = input_folder / f"{ds_id}.csv"
