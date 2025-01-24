@@ -27,14 +27,16 @@ class Load_Data():
             position_str = row['position']
             position_str = position_str.strip("() ").replace(" ", "")
             parts = position_str.split(",")
-            if len(parts) == 2:
-                self.position_dim = 2
-                position = (float(parts[0]), float(parts[1]))
-            elif len(parts) == 3:
-                self.position_dim = 3
-                position = (float(parts[0]), float(parts[1]), float(parts[2]))
-            else:
-                raise ValueError(f"Unsupported position format: {position_str}")
+            # Convert parts to floats and store in a list using map function
+            position = list(map(float, parts))
+            # Get the dimension of the position
+            dim = len(position)
+            # Check whether the entire trajectory data is in the same dimension
+            if self.position_dim == 0:
+                self.position_dim = dim  # Set the dimension if not set yet
+            elif self.position_dim != dim:
+                raise ValueError(f"Data dimension mismatch: expected {self.position_dim}, got {dim}")
+
             # Add to the nested dictionary
             self.trajectory_data[ds_id][time].append(position)
 

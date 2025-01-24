@@ -8,100 +8,70 @@ class Traj_Predict():
     def __init__(self, traj, pos_dim):
         self.traj = traj
         self.pos_dim = pos_dim
-        pass
 
     def predict(self):
         last_trajs_points = []
-        if self.pos_dim ==2:
-            last_point_x, last_point_y, last_t = self.traj[-1][:3]
-            # `num` specifies the number of historical data points used for prediction
-            num = 20
+        # `num` specifies the number of historical data points used for prediction
+        num = 20
 
-            if len(self.traj) >= num:
-                kf = KalmanFilter(dim_x=4, dim_z=2)
+        if len(self.traj) >= num:
+            # 动态设置卡尔曼滤波器的维度
+            dim_x = 2 * self.pos_dim
+            dim_z = self.pos_dim
+            kf = KalmanFilter(dim_x=dim_x, dim_z=dim_z)
 
-                # System dynamic matrix and measurement noise matrix for Kalman filter
-                dt = 1.0
-                kf.F = np.array([[1, 0, dt, 0], [0, 1, 0, dt], [0, 0, 1, 0], [0, 0, 0, 1]])
-                kf.H = np.array([[1, 0, 0, 0], [0, 1, 0, 0]])
-                kf.R = np.diag([0.1, 0.1])  # Measurement noise covariance matrix
-                kf.Q = Q_discrete_white_noise(dim=4, dt=dt, var=0.01 ** 2)  # System dynamic noise covariance matrix
+            # 系统动态矩阵 F
+            dt = 1.0
+            F = np.eye(dim_x)
+            for i in range(self.pos_dim):
+                F[i, i + self.pos_dim] = dt
+            kf.F = F
 
-                # Initialize the state vector and covariance matrix
-                # kf.P = np.diag([100, 100, 10, 10])
-                sigma = 0.05
-                R = np.diag(2 * [sigma ** 2])
-                kf.P = np.diag([R[0, 0], R[1, 1], 1.0, 1.0])
+            # 测量矩阵 H
+            H = np.zeros((dim_z, dim_x))
+            for i in range(dim_z):
+                H[i, i] = 1
+            kf.H = H
 
-                # Historical trajectory points
-                a = np.array(self.traj)
-                history = a[-num:, 0:2]
-                history = history.astype(float)
+            # 测量噪声协方差矩阵 R
+            kf.R = np.diag([0.1] * dim_z)
 
-                kf.x = np.array([history[0][0], history[0][1], 0, 0])
+            # 系统动态噪声协方差矩阵 Q
+            q = 0.01 ** 2
+            Q = np.zeros((dim_x, dim_x))
+            for i in range(self.pos_dim):
+                Q[i, i] = q * dt ** 4 / 4
+                Q[i, i + self.pos_dim] = q * dt ** 3 / 2
+                Q[i + self.pos_dim, i] = q * dt ** 3 / 2
+                Q[i + self.pos_dim, i + self.pos_dim] = q * dt ** 2
+            kf.Q = Q
 
-                # Incorporate historical trajectory points to update the state vector and covariance matrix
-                for i in range(history.shape[0]):
-                    z = history[i].reshape((2, 1))
-                    kf.predict()
-                    kf.update(z)
-                last_point_x, last_point_y = kf.x[:2]
-                last_t = self.traj[-1][2] - self.traj[-2][2] + self.traj[-1][2]
+            # 初始化状态向量和协方差矩阵
+            sigma = 0.05
+            R = np.diag([sigma ** 2] * dim_z)
+            P_diag = list(R.diagonal()) + [1.0] * self.pos_dim
+            kf.P = np.diag(P_diag)
 
-            last_trajs_points.append([last_point_x, last_point_y, last_t])
-            return last_trajs_points
+            # 历史轨迹点
+            a = np.array(self.traj)
+            history = a[-num:, :self.pos_dim]
+            history = history.astype(float)
 
-        elif self.pos_dim == 3:
-            last_point_x, last_point_y, last_point_z, last_t = self.traj[-1][:4]
-            # `num` specifies the number of historical data points used for prediction
-            num = 20
+            kf.x = np.zeros(dim_x)
+            kf.x[:self.pos_dim] = history[0]
 
-            if len(self.traj) >= num:
-                kf = KalmanFilter(dim_x=6, dim_z=3)
+            # 结合历史轨迹点更新状态向量和协方差矩阵
+            for i in range(history.shape[0]):
+                z = history[i].reshape((dim_z, 1))
+                kf.predict()
+                kf.update(z)
 
-                # System dynamic matrix and measurement noise matrix for Kalman filter
-                dt = 1.0
-                kf.F = np.array([[1, 0, 0, dt, 0, 0],
-                                 [0, 1, 0, 0, dt, 0],
-                                 [0, 0, 1, 0, 0, dt],
-                                 [0, 0, 0, 1, 0, 0],
-                                 [0, 0, 0, 0, 1, 0],
-                                 [0, 0, 0, 0, 0, 1]])
-                kf.H = np.array([[1, 0, 0, 0, 0, 0],
-                                 [0, 1, 0, 0, 0, 0],
-                                 [0, 0, 1, 0, 0, 0]])
-                kf.R = np.diag([0.1, 0.1, 0.1])  # Measurement noise covariance matrix
-                # kf.Q = Q_discrete_white_noise(dim=6, dt=dt, var=0.01 ** 2)  # System dynamic noise covariance matrix
-                # Manually construct the Q matrix
-                q = 0.01 ** 2
-                kf.Q = np.array([[q * dt ** 4 / 4, 0, 0, q * dt ** 3 / 2, 0, 0],
-                                 [0, q * dt ** 4 / 4, 0, 0, q * dt ** 3 / 2, 0],
-                                 [0, 0, q * dt ** 4 / 4, 0, 0, q * dt ** 3 / 2],
-                                 [q * dt ** 3 / 2, 0, 0, q * dt ** 2, 0, 0],
-                                 [0, q * dt ** 3 / 2, 0, 0, q * dt ** 2, 0],
-                                 [0, 0, q * dt ** 3 / 2, 0, 0, q * dt ** 2]])
+            last_point = kf.x[:self.pos_dim]
+            last_t = self.traj[-1][self.pos_dim] - self.traj[-2][self.pos_dim] + self.traj[-1][self.pos_dim]
+        else:
+            last_point = self.traj[-1][:self.pos_dim]
+            last_t = self.traj[-1][self.pos_dim]
 
-                # Initialize the state vector and covariance matrix
-                # kf.P = np.diag([100, 100, 100, 10, 10, 10])
-                sigma = 0.05
-                R = np.diag(3 * [sigma ** 2])
-                kf.P = np.diag([R[0, 0], R[1, 1], R[2, 2], 1.0, 1.0, 1.0])
-
-                # Historical trajectory points
-                a = np.array(self.traj)
-                history = a[-num:, 0:3]  # 包含 z 坐标
-                history = history.astype(float)
-
-                kf.x = np.array([history[0][0], history[0][1], history[0][2], 0, 0, 0])
-
-                # Incorporate historical trajectory points to update the state vector and covariance matrix
-                for i in range(history.shape[0]):
-                    z = history[i].reshape((3, 1))
-                    kf.predict()
-                    kf.update(z)
-                last_point_x, last_point_y, last_point_z = kf.x[:3]
-                last_t = self.traj[-1][3] - self.traj[-2][3] + self.traj[-1][3]
-
-            last_trajs_points.append([last_point_x, last_point_y, last_point_z, last_t])
-            return last_trajs_points
-
+        last_point = list(last_point) + [last_t]
+        last_trajs_points.append(last_point)
+        return last_trajs_points

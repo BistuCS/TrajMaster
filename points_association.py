@@ -2,7 +2,6 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 from utils import dist
 
-
 class Points_Association():
     def __init__(self, new_points, pred_traj_points, last_trajs_points, threshold_d, pos_dim):
         self.new_points = new_points
@@ -19,70 +18,42 @@ class Points_Association():
         len_pred = len(self.pred_traj_points)
         # pred line  & new column
         cost = np.array([[0 for j in range(len_new)] for i in range(len_pred)])
-        if self.pos_dim == 2:
-            for i in range(len_pred):
-                mn = float('inf')
+
+        def get_distance_function():
+            if self.pos_dim == 2:
+                return lambda p1, p2: dist(p1[0], p1[1], p2[0], p2[1])
+            else:
+                return lambda p1, p2: self.dist_general(p1[:self.pos_dim], p2[:self.pos_dim])
+
+        distance_func = get_distance_function()
+
+        for i in range(len_pred):
+            mn = float('inf')
+            for j in range(len_new):
+                cost[i][j] = dis = distance_func(self.pred_traj_points[i], self.new_points[j])
+                mn = min(mn, dis)
+            if mn > self.threshold_d:
                 for j in range(len_new):
-                    x1, y1, _ = self.pred_traj_points[i]
-                    x2, y2 = self.new_points[j][:2]
-                    cost[i][j] = dis = dist(x1, y1, x2, y2)
-                    mn = min(mn, dis)
-                if mn > self.threshold_d:
-                    for j in range(len_new):
-                        cost[i][j] = mn
+                    cost[i][j] = mn
 
-            if len_pred == 0:
-                return []
-            """After association, return the successfully matched pairs."""
+        if len_pred == 0:
+            return []
+        """After association, return the successfully matched pairs."""
+        # Find the elements in each row and column of the cost matrix so that their sum is minimized,
+        # and return their row and column subscript lists
+        row_ind, col_ind = linear_sum_assignment(cost)
+        match_pair = []
+        for i in range(len(row_ind)):
+            idx_pre, idx_new = row_ind[i], col_ind[i]
+            if cost[idx_pre][idx_new] > self.threshold_d:
+                continue
+            match_pair.append([idx_pre, idx_new])
 
-            # Find the elements in each row and column of the cost matrix so that their sum is minimized,
-            # and return their row and column subscript lists
-            row_ind, col_ind = linear_sum_assignment(cost)
-            match_pair = []
-            for i in range(len(row_ind)):
-                idx_pre, idx_new = row_ind[i], col_ind[i]
-                if cost[idx_pre][idx_new] > self.threshold_d:
-                    continue
-                match_pair.append([idx_pre, idx_new])
+        return match_pair
 
-            return match_pair
-
-        elif self.pos_dim ==3:
-            for i in range(len_pred):
-                mn = float('inf')
-                for j in range(len_new):
-                    x1, y1, z1, _ = self.pred_traj_points[i]
-                    x2, y2, z2 = self.new_points[j][:3]
-                    cost[i][j] = dis = self.dist1(x1, y1, z1, x2, y2, z2)
-                    mn = min(mn, dis)
-                if mn > self.threshold_d:
-                    for j in range(len_new):
-                        cost[i][j] = mn
-
-            if len_pred == 0:
-                return []
-            """After association, return the successfully matched pairs."""
-            row_ind, col_ind = linear_sum_assignment(cost)
-            match_pair = []
-            for i in range(len(row_ind)):
-                idx_pre, idx_new = row_ind[i], col_ind[i]
-                if cost[idx_pre][idx_new] > self.threshold_d:
-                    continue
-                match_pair.append([idx_pre, idx_new])
-
-            # What is returned is the subscript of the trajectory point in cost
-            return match_pair
-
-
-    def dist1(self, alng, alat, alti, blng, blat, blti):
-        """
-        :param alng: Longitude of target a
-        :param alat: Latitude of target a
-        :param alti: Altitude of target a
-        :param blng: Longitude of target b
-        :param blat: Latitude of target b
-        :param blti: Altitude of target b
-        :return: Distance between a and b in meters
-        """
-        # Using the Euclidean distance formula in three dimensions
-        return np.sqrt((alat - blat) ** 2 + (alng - blng) ** 2 + (alti - blti) ** 2) * 100000
+    def dist_general(self, point1, point2):
+        """General distance calculation for dimensions > 2"""
+        dist_squared = 0
+        for dim in range(self.pos_dim):
+            dist_squared += (point1[dim] - point2[dim]) ** 2
+        return np.sqrt(dist_squared) * 100000

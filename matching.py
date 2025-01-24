@@ -10,11 +10,22 @@ def match(trajs_ds1, trajs_ds2, pos_dim):
     cnt2 = defaultdict(int)
     print('match_ds2ds')
 
+    # 封装距离计算函数
+    def dist(point1, point2):
+        dist_squared = 0
+        for i in range(pos_dim):
+            dist_squared += (point1[i] - point2[i]) ** 2
+        return math.sqrt(dist_squared) * 109001.77571  # Convert to meters
+
+    # 封装相似度判断函数
+    def cal_sim_ds(point1, point2):
+        return dist(point1, point2) < d_sim_ds_m
+
     # Iterate through trajectories from both data source
     for id_traj, traj_ds1_data in trajs_ds1.items():
         for other_id_traj, traj_ds2_data in trajs_ds2.items():
             # Initialize matching pointers and limit condition
-            p_ds, p2_ds = [0] * 2
+            p_ds, p2_ds = 0, 0
             lim = 0  # Controls consecutive mismatches
             # Compare trajectory points based on time and adjust pointers
             while p_ds < len(traj_ds1_data) and p2_ds < len(traj_ds2_data):
@@ -33,38 +44,17 @@ def match(trajs_ds1, trajs_ds2, pos_dim):
                 if p2_ds >= len(traj_ds2_data):
                     break
 
-                # Calculate trajectory point similarity
-                def dist2(alng, alat, blng, blat):
-                    return math.sqrt((alng - blng) ** 2 + (alat - blat) ** 2) * 109001.77571  # Convert to meters
-
-                def dist3(alng, alat, alti, blng, blat, blti):
-                    return math.sqrt((alng - blng) ** 2 + (alat - blat) ** 2 + (alti - blti) ** 2) * 109001.77571  # Convert to meters
-
-                def cal_sim_ds_2d(lon, lat, lon2, lat2):
-                    return dist2(lon, lat, lon2, lat2) < d_sim_ds_m
-
-                def cal_sim_ds_3d(lon, lat, z, lon2, lat2, z2):
-                    return dist3(lon, lat, z, lon2, lat2, z2) < d_sim_ds_m
-
                 # Update matching counters; terminate if consecutive mismatches exceed 30
-                if pos_dim == 2:
-                    cnt2[((id_traj), (other_id_traj))] += 1
-                    if cal_sim_ds_2d(*traj_ds1_data[p_ds][1:3], *traj_ds2_data[p2_ds][1:3]):
-                        lim = 0
-                        cnt[((id_traj), (other_id_traj))] += 1
-                    else:
-                        lim += 1
-                        if lim > 30:
-                            break
-                elif pos_dim == 3:
-                    cnt2[((id_traj), (other_id_traj))] += 1
-                    if cal_sim_ds_3d(*traj_ds1_data[p_ds][1:4], *traj_ds2_data[p2_ds][1:4]):
-                        lim = 0
-                        cnt[((id_traj), (other_id_traj))] += 1
-                    else:
-                        lim += 1
-                        if lim > 30:
-                            break
+                cnt2[((id_traj), (other_id_traj))] += 1
+                point1 = traj_ds1_data[p_ds][1:1 + pos_dim]
+                point2 = traj_ds2_data[p2_ds][1:1 + pos_dim]
+                if cal_sim_ds(point1, point2):
+                    lim = 0
+                    cnt[((id_traj), (other_id_traj))] += 1
+                else:
+                    lim += 1
+                    if lim > 30:
+                        break
                 p2_ds += 1
 
     # Process matching results
